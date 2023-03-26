@@ -34,8 +34,8 @@ class ScriptExecutorWindowState(
     val saveDialog = DialogState<Path?>()
     val exitDialog = DialogState<AlertDialogResult>()
 
-    private var _notifications = Channel<NotepadWindowNotification>(0)
-    val notifications: Flow<NotepadWindowNotification> get() = _notifications.receiveAsFlow()
+    private var _notifications = Channel<ScriptExecutorWindowNotification>(0)
+    val notifications: Flow<ScriptExecutorWindowNotification> get() = _notifications.receiveAsFlow()
 
     private var _text by mutableStateOf("")
 
@@ -56,6 +56,10 @@ class ScriptExecutorWindowState(
         } else {
             WindowPlacement.Fullscreen
         }
+    }
+
+    val runScript = {
+        println("running script...")
     }
 
     suspend fun run() {
@@ -124,11 +128,11 @@ class ScriptExecutorWindowState(
 
         try {
             saveJob?.join()
-            _notifications.trySend(NotepadWindowNotification.SaveSuccess(path))
+            _notifications.trySend(ScriptExecutorWindowNotification.SaveSuccess(path))
         } catch (e: Exception) {
             isChanged = true
             e.printStackTrace()
-            _notifications.trySend(NotepadWindowNotification.SaveError(path))
+            _notifications.trySend(ScriptExecutorWindowNotification.SaveError(path))
         }
     }
 
@@ -179,9 +183,9 @@ private suspend fun Path.readTextAsync() = withContext(Dispatchers.IO) {
     toFile().readText()
 }
 
-sealed class NotepadWindowNotification {
-    class SaveSuccess(val path: Path) : NotepadWindowNotification()
-    class SaveError(val path: Path) : NotepadWindowNotification()
+sealed class ScriptExecutorWindowNotification {
+    class SaveSuccess(val path: Path) : ScriptExecutorWindowNotification()
+    class SaveError(val path: Path) : ScriptExecutorWindowNotification()
 }
 
 class DialogState<T> {

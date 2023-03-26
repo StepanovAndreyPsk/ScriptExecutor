@@ -1,9 +1,7 @@
 package window
 
+import ImageButton
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.SwingPanel
 import androidx.compose.ui.graphics.Color
@@ -18,6 +16,8 @@ import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants
 import org.fife.ui.rtextarea.RTextScrollPane
 import androidx.compose.foundation.layout.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.unit.dp
 
 var codeEditor: RTextScrollPane? = null
 @Composable
@@ -37,34 +37,21 @@ fun ScriptExecutorWindow(state: ScriptExecutorWindowState) {
         WindowNotifications(state)
         WindowMenuBar(state)
 
-        if (codeEditor == null) {
-            val textArea = RSyntaxTextArea(20, 60);
-            textArea.syntaxEditingStyle = SyntaxConstants.SYNTAX_STYLE_KOTLIN
-            textArea.isCodeFoldingEnabled = true
-            textArea.antiAliasingEnabled = true
+        Column {
+            Row(
+                modifier = Modifier.fillMaxWidth().height(50.dp).padding(5.dp),
+                horizontalArrangement = Arrangement.End
+            ) {
+                ImageButton("run.png", state.runScript)
+//                Spacer(Modifier.size(10.dp))
+            }
 
-            val scrollPane = RTextScrollPane(textArea)
-            scrollPane.textArea.text = state.text
-            scrollPane.textArea.addCaretListener { state.text = scrollPane.textArea.text }
-
-            codeEditor = scrollPane
-        }
-
-        Box(modifier = Modifier.fillMaxSize()) {
-            SwingPanel(
-                background = Color.White,
-                factory = {
-                    JPanel().apply {
-                        layout = BoxLayout(this, BoxLayout.Y_AXIS)
-                        add(codeEditor)
-                    }
-                }
-            )
+            CodeEditor(mutableStateOf(state.text), modifier = Modifier.fillMaxSize().padding(10.dp))
         }
 
         if (state.openDialog.isAwaiting) {
             FileDialog(
-                title = "Notepad",
+                title = "ScriptExecutor",
                 isLoad = true,
                 onResult = {
                     state.openDialog.onResult(it)
@@ -74,7 +61,7 @@ fun ScriptExecutorWindow(state: ScriptExecutorWindowState) {
 
         if (state.saveDialog.isAwaiting) {
             FileDialog(
-                title = "Notepad",
+                title = "ScriptExecutor",
                 isLoad = false,
                 onResult = { state.saveDialog.onResult(it) }
             )
@@ -90,20 +77,51 @@ fun ScriptExecutorWindow(state: ScriptExecutorWindowState) {
     }
 }
 
+@Composable
+fun CodeEditor(code: MutableState<String>, modifier: Modifier = Modifier) {
+    if (codeEditor == null) {
+        // create the scrollpane only once. Otherwise when text area value is
+        // changed, the compose function is called from addCaretListener,
+        // and a new code editor is created, with invalid caret position.
+        val textArea = RSyntaxTextArea(20, 60);
+        textArea.syntaxEditingStyle = SyntaxConstants.SYNTAX_STYLE_KOTLIN
+        textArea.isCodeFoldingEnabled = true
+        textArea.antiAliasingEnabled = true
+
+        val sp = RTextScrollPane(textArea)
+        sp.textArea.text = code.value
+        sp.textArea.addCaretListener { code.value = sp.textArea.text }
+
+        codeEditor = sp
+    }
+
+    Box(modifier = modifier) {
+        SwingPanel(
+            background = Color.White,
+            factory = {
+                JPanel().apply {
+                    layout = BoxLayout(this, BoxLayout.Y_AXIS)
+                    add(codeEditor)
+                }
+            }
+        )
+    }
+}
+
 private fun titleOf(state: ScriptExecutorWindowState): String {
     val changeMark = if (state.isChanged) "*" else ""
     val filePath = state.path ?: "Untitled"
-    return "$changeMark$filePath - Notepad"
+    return "$changeMark$filePath - ScriptExecutor"
 }
 
 @Composable
 private fun WindowNotifications(state: ScriptExecutorWindowState) {
     // Usually we take into account something like LocalLocale.current here
-    fun NotepadWindowNotification.format() = when (this) {
-        is NotepadWindowNotification.SaveSuccess -> Notification(
+    fun ScriptExecutorWindowNotification.format() = when (this) {
+        is ScriptExecutorWindowNotification.SaveSuccess -> Notification(
             "File is saved", path.toString(), Notification.Type.Info
         )
-        is NotepadWindowNotification.SaveError -> Notification(
+        is ScriptExecutorWindowNotification.SaveError -> Notification(
             "File isn't saved", path.toString(), Notification.Type.Error
         )
     }
