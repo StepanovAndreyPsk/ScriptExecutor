@@ -16,6 +16,7 @@ dependencies {
     implementation(compose.materialIconsExtended)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-swing:1.6.0")
     implementation("com.fifesoft:rsyntaxtextarea:3.1.3")
+    implementation("com.github.pgreze:kotlin-process:1.4.1")
 }
 
 compose.desktop {

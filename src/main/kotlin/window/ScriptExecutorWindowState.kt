@@ -14,6 +14,8 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 import util.AlertDialogResult
 import java.nio.file.Path
+import java.io.BufferedReader
+import java.io.InputStreamReader
 
 class ScriptExecutorWindowState(
     private val application: ScriptExecutorApplicationState,
@@ -58,8 +60,24 @@ class ScriptExecutorWindowState(
         }
     }
 
-    val runScript = {
+    suspend fun runScript() {
         println("running script...")
+        if (path == null) {
+            save()
+        }
+
+        println("script successfully ran, printing result...")
+        val p = ProcessBuilder("kotlinc", "-script", path.toString())
+        var output = ""
+        withContext(Dispatchers.IO) {
+            val process = p.start()
+            val inputStream = BufferedReader(InputStreamReader(process.getInputStream()))
+            while (inputStream.readLine()?.also { output = it } != null) {
+                println("Debug: " + output)
+            }
+            inputStream.close()
+            process.waitFor()
+        }
     }
 
     suspend fun run() {

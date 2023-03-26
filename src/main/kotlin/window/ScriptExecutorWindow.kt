@@ -1,6 +1,7 @@
 package window
 
 import ImageButton
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.SwingPanel
@@ -16,7 +17,9 @@ import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants
 import org.fife.ui.rtextarea.RTextScrollPane
 import androidx.compose.foundation.layout.*
+import androidx.compose.material.Button
 import androidx.compose.runtime.*
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 
 var codeEditor: RTextScrollPane? = null
@@ -25,6 +28,7 @@ fun ScriptExecutorWindow(state: ScriptExecutorWindowState) {
     val scope = rememberCoroutineScope()
 
     fun exit() = scope.launch { state.exit() }
+    fun runScript() = scope.launch { state.runScript() }
 
     Window(
         state = state.window,
@@ -42,7 +46,13 @@ fun ScriptExecutorWindow(state: ScriptExecutorWindowState) {
                 modifier = Modifier.fillMaxWidth().height(50.dp).padding(5.dp),
                 horizontalArrangement = Arrangement.End
             ) {
-                ImageButton("run.png", state.runScript)
+                Button(
+                    modifier = Modifier.size(50.dp, 50.dp),
+                    onClick = { runScript() }
+                ) {
+                    Image(painterResource("run.png"), "")
+                }
+//                ImageButton("run.png", state.runScript)
 //                Spacer(Modifier.size(10.dp))
             }
 
