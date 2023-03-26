@@ -1,6 +1,7 @@
 package window
 
 import ScriptExecutorApplicationState
+import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -32,6 +33,9 @@ class ScriptExecutorWindowState(
     var isChanged by mutableStateOf(false)
         private set
 
+    var outputUpdated by mutableStateOf(false)
+        private set
+
     val openDialog = DialogState<Path?>()
     val saveDialog = DialogState<Path?>()
     val exitDialog = DialogState<AlertDialogResult>()
@@ -40,6 +44,7 @@ class ScriptExecutorWindowState(
     val notifications: Flow<ScriptExecutorWindowNotification> get() = _notifications.receiveAsFlow()
 
     private var _text by mutableStateOf("")
+    private var _scriptOutput = mutableStateOf("")
 
     var text: String
         get() = _text
@@ -47,6 +52,14 @@ class ScriptExecutorWindowState(
             check(isInit)
             _text = value
             isChanged = true
+        }
+
+    var scriptOutput: MutableState<String>
+        get() = _scriptOutput
+        set(value) {
+            check(isInit)
+            _scriptOutput = value
+            outputUpdated = true
         }
 
     var isInit by mutableStateOf(false)
@@ -67,13 +80,14 @@ class ScriptExecutorWindowState(
         }
 
         println("script successfully ran, printing result...")
-        val p = ProcessBuilder("kotlinc", "-script", path.toString())
+        val p = ProcessBuilder("ping", "google.com")
         var output = ""
         withContext(Dispatchers.IO) {
             val process = p.start()
             val inputStream = BufferedReader(InputStreamReader(process.getInputStream()))
             while (inputStream.readLine()?.also { output = it } != null) {
-                println("Debug: " + output)
+                scriptOutput.value += "\n$output"
+//                println("Debug: " + output)
             }
             inputStream.close()
             process.waitFor()

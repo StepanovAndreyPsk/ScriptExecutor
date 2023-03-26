@@ -1,7 +1,6 @@
 package window
 
-import ImageButton
-import androidx.compose.foundation.Image
+import androidx.compose.foundation.*
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.awt.SwingPanel
@@ -17,8 +16,12 @@ import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants
 import org.fife.ui.rtextarea.RTextScrollPane
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.Button
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Text
 import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 
@@ -43,7 +46,7 @@ fun ScriptExecutorWindow(state: ScriptExecutorWindowState) {
 
         Column {
             Row(
-                modifier = Modifier.fillMaxWidth().height(50.dp).padding(5.dp),
+//                modifier = Modifier.fillMaxWidth().height(50.dp).padding(5.dp),
                 horizontalArrangement = Arrangement.End
             ) {
                 Button(
@@ -52,11 +55,22 @@ fun ScriptExecutorWindow(state: ScriptExecutorWindowState) {
                 ) {
                     Image(painterResource("run.png"), "")
                 }
-//                ImageButton("run.png", state.runScript)
-//                Spacer(Modifier.size(10.dp))
             }
-
-            CodeEditor(mutableStateOf(state.text), modifier = Modifier.fillMaxSize().padding(10.dp))
+            CodeEditor(mutableStateOf(state.text), modifier = Modifier.fillMaxSize().padding(10.dp).weight(4f))
+            Row (
+                modifier = Modifier.fillMaxWidth().height(100.dp).padding(10.dp).weight(1f).border(width = 1.dp, color = Color.Gray),
+            ) {
+                val scriptOutput by mutableStateOf(state.scriptOutput)
+                val scroll = rememberScrollState(0)
+                LaunchedEffect(scriptOutput.value) {
+                    scroll.scrollTo(scroll.maxValue)
+                }
+                Text(
+                    text = scriptOutput.value,
+                    modifier = Modifier.fillMaxSize().background(Color.White).verticalScroll(scroll),
+                    style = MaterialTheme.typography.body2
+                )
+            }
         }
 
         if (state.openDialog.isAwaiting) {
