@@ -16,7 +16,6 @@ import org.fife.ui.rsyntaxtextarea.RSyntaxTextArea
 import org.fife.ui.rsyntaxtextarea.SyntaxConstants
 import org.fife.ui.rtextarea.RTextScrollPane
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.Button
 import androidx.compose.material.MaterialTheme
@@ -55,7 +54,6 @@ fun ScriptExecutorWindow(state: ScriptExecutorWindowState) {
 
         Column {
             Row(
-//                modifier = Modifier.fillMaxWidth().height(50.dp).padding(5.dp),
                 horizontalArrangement = Arrangement.End
             ) {
                 val status by mutableStateOf(state.status)
@@ -143,9 +141,6 @@ fun ScriptExecutorWindow(state: ScriptExecutorWindowState) {
 @Composable
 fun CodeEditor(code: MutableState<String>, modifier: Modifier = Modifier, state: ScriptExecutorWindowState) {
     if (codeEditor == null) {
-        // create the scrollpane only once. Otherwise when text area value is
-        // changed, the compose function is called from addCaretListener,
-        // and a new code editor is created, with invalid caret position.
         val textArea = RSyntaxTextArea(20, 60);
         textArea.syntaxEditingStyle = SyntaxConstants.SYNTAX_STYLE_KOTLIN
         textArea.isCodeFoldingEnabled = true
@@ -226,10 +221,8 @@ private fun FrameWindowScope.WindowMenuBar(state: ScriptExecutorWindowState) = M
     }
 }
 
-//first we match the html tags and enable the links
 fun getTextWithLinks(text: String, filename: String?) : AnnotatedString {
     return buildAnnotatedString {
-    //the html pattern we are searching for
     val codeLinksPattern = Pattern.compile(
         "($filename:(\\d+):(\\d))",
         Pattern.CASE_INSENSITIVE or Pattern.MULTILINE or Pattern.DOTALL
@@ -238,46 +231,38 @@ fun getTextWithLinks(text: String, filename: String?) : AnnotatedString {
     var matchStart: Int
     var matchEnd = 0
     var previousMatchStart = 0
-    //while there are links in the text we add them to the annotated string:
     while (matcher.find()) {
         matchStart = matcher.start(1)
         matchEnd = matcher.end()
-        //first we find the text that is before/between links
         val beforeMatch = text.substring(
             startIndex = previousMatchStart,
             endIndex = matchStart
         )
-        //the html tag that we will use as text
         val tagMatch = text.substring(
             startIndex = matchStart,
             endIndex = matchEnd
         )
-        //first append is the text before a link
         append(
             beforeMatch
         )
-        // attach a string annotation that stores a URL to the text
         val annotation = text.substring(
-            startIndex = matchStart,//omit '<a hreh ='
+            startIndex = matchStart,
             endIndex = matchEnd
         )
-        //the "annotation" value will be used later for the clickable property
         pushStringAnnotation(tag = "link_tag", annotation = annotation)
-        withStyle(//our own style
+        withStyle(
             SpanStyle(
                 color = Color.Blue,
                 textDecoration = TextDecoration.Underline
             )
         ) {
             append(
-                //text to show as hyperlink
                 tagMatch
             )
         }
-        pop() //don't forget to add this line after a pushStringAnnotation
+        pop()
         previousMatchStart = matchEnd
     }
-    //append the rest of the string (after the last link)
     if (text.length > matchEnd) {
         append(
             text.substring(
