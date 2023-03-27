@@ -17,14 +17,22 @@ import org.fife.ui.rsyntaxtextarea.SyntaxConstants
 import org.fife.ui.rtextarea.RTextScrollPane
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.ClickableText
 import androidx.compose.material.Button
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextDecoration
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
+import java.io.File
+import java.util.regex.Pattern
 
 var codeEditor: RTextScrollPane? = null
 @Composable
@@ -75,10 +83,31 @@ fun ScriptExecutorWindow(state: ScriptExecutorWindowState) {
                 LaunchedEffect(scriptOutput.value) {
                     scroll.scrollTo(scroll.maxValue)
                 }
-                Text(
-                    text = scriptOutput.value,
+                val filename = state.path?.toFile()?.name
+
+                val textWithLinks = getTextWithLinks(scriptOutput.value, filename)
+                ClickableText(
+                    text = textWithLinks,
                     modifier = Modifier.fillMaxSize().background(Color.White).verticalScroll(scroll),
-                    style = MaterialTheme.typography.body2
+                    style = MaterialTheme.typography.body2,
+                    onClick = { offset ->
+                        textWithLinks.getStringAnnotations(
+                            tag = "link_tag",
+                            start = offset,
+                            end = offset
+                        ).firstOrNull()?.let { stringAnnotation ->
+                            println(stringAnnotation.item)
+                            val lineStr = stringAnnotation.item.split(':')[1]
+                            val charPos = stringAnnotation.item.split(':')[2]
+                            println("line number: ${lineStr.toInt()}, pos: ${charPos.toInt()}")
+                            val position = codeEditor?.textArea?.getLineStartOffset(lineStr.toInt() - 1)?.plus(charPos.toInt() - 1)
+                            println("calculated position: $position")
+                            if (position != null) {
+                                codeEditor?.textArea?.caretPosition = position
+                            }
+                            codeEditor?.textArea?.requestFocus()
+                        }
+                    }
                 )
             }
         }
@@ -195,4 +224,67 @@ private fun FrameWindowScope.WindowMenuBar(state: ScriptExecutorWindowState) = M
             onClick = state::toggleFullscreen
         )
     }
+}
+
+//first we match the html tags and enable the links
+fun getTextWithLinks(text: String, filename: String?) : AnnotatedString {
+    return buildAnnotatedString {
+    //the html pattern we are searching for
+    val codeLinksPattern = Pattern.compile(
+        "($filename:(\\d+):(\\d))",
+        Pattern.CASE_INSENSITIVE or Pattern.MULTILINE or Pattern.DOTALL
+    )
+    val matcher = codeLinksPattern.matcher(text)
+    var matchStart: Int
+    var matchEnd = 0
+    var previousMatchStart = 0
+    //while there are links in the text we add them to the annotated string:
+    while (matcher.find()) {
+        matchStart = matcher.start(1)
+        matchEnd = matcher.end()
+        //first we find the text that is before/between links
+        val beforeMatch = text.substring(
+            startIndex = previousMatchStart,
+            endIndex = matchStart
+        )
+        //the html tag that we will use as text
+        val tagMatch = text.substring(
+            startIndex = matchStart,
+            endIndex = matchEnd
+        )
+        //first append is the text before a link
+        append(
+            beforeMatch
+        )
+        // attach a string annotation that stores a URL to the text
+        val annotation = text.substring(
+            startIndex = matchStart,//omit '<a hreh ='
+            endIndex = matchEnd
+        )
+        //the "annotation" value will be used later for the clickable property
+        pushStringAnnotation(tag = "link_tag", annotation = annotation)
+        withStyle(//our own style
+            SpanStyle(
+                color = Color.Blue,
+                textDecoration = TextDecoration.Underline
+            )
+        ) {
+            append(
+                //text to show as hyperlink
+                tagMatch
+            )
+        }
+        pop() //don't forget to add this line after a pushStringAnnotation
+        previousMatchStart = matchEnd
+    }
+    //append the rest of the string (after the last link)
+    if (text.length > matchEnd) {
+        append(
+            text.substring(
+                startIndex = matchEnd,
+                endIndex = text.length
+            )
+        )
+    }
+}
 }
