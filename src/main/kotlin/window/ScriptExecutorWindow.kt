@@ -23,6 +23,7 @@ import androidx.compose.material.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 
 var codeEditor: RTextScrollPane? = null
@@ -49,18 +50,27 @@ fun ScriptExecutorWindow(state: ScriptExecutorWindowState) {
 //                modifier = Modifier.fillMaxWidth().height(50.dp).padding(5.dp),
                 horizontalArrangement = Arrangement.End
             ) {
+                val status by mutableStateOf(state.status)
+                val iconPath by mutableStateOf(state.buttonIconPath)
                 Button(
                     modifier = Modifier.size(50.dp, 50.dp),
                     onClick = { runScript() }
                 ) {
-                    Image(painterResource("run.png"), "")
+                    Image(painterResource(iconPath.value), "")
                 }
+                Text(
+                    text = status.value,
+                    modifier = Modifier.height(50.dp).align(Alignment.CenterVertically),
+                    style = MaterialTheme.typography.button,
+                    textAlign = TextAlign.Center
+                )
             }
-            CodeEditor(mutableStateOf(state.text), modifier = Modifier.fillMaxSize().padding(10.dp).weight(4f))
+            CodeEditor(mutableStateOf(state.text), modifier = Modifier.fillMaxSize().padding(10.dp).weight(4f), state)
             Row (
                 modifier = Modifier.fillMaxWidth().height(100.dp).padding(10.dp).weight(1f).border(width = 1.dp, color = Color.Gray),
             ) {
                 val scriptOutput by mutableStateOf(state.scriptOutput)
+                val isRunning by mutableStateOf(state.isRunning)
                 val scroll = rememberScrollState(0)
                 LaunchedEffect(scriptOutput.value) {
                     scroll.scrollTo(scroll.maxValue)
@@ -102,7 +112,7 @@ fun ScriptExecutorWindow(state: ScriptExecutorWindowState) {
 }
 
 @Composable
-fun CodeEditor(code: MutableState<String>, modifier: Modifier = Modifier) {
+fun CodeEditor(code: MutableState<String>, modifier: Modifier = Modifier, state: ScriptExecutorWindowState) {
     if (codeEditor == null) {
         // create the scrollpane only once. Otherwise when text area value is
         // changed, the compose function is called from addCaretListener,
@@ -114,11 +124,13 @@ fun CodeEditor(code: MutableState<String>, modifier: Modifier = Modifier) {
 
         val sp = RTextScrollPane(textArea)
         sp.textArea.text = code.value
-        sp.textArea.addCaretListener { code.value = sp.textArea.text }
+        sp.textArea.addCaretListener {
+            state.text = sp.textArea.text
+            code.value = sp.textArea.text
+        }
 
         codeEditor = sp
     }
-
     Box(modifier = modifier) {
         SwingPanel(
             background = Color.White,

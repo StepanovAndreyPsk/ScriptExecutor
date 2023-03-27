@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.receiveAsFlow
 import util.AlertDialogResult
 import java.nio.file.Path
 import java.io.BufferedReader
+import java.io.File
 import java.io.InputStreamReader
 
 class ScriptExecutorWindowState(
@@ -33,8 +34,7 @@ class ScriptExecutorWindowState(
     var isChanged by mutableStateOf(false)
         private set
 
-    var outputUpdated by mutableStateOf(false)
-        private set
+    var isRunning by mutableStateOf(false)
 
     val openDialog = DialogState<Path?>()
     val saveDialog = DialogState<Path?>()
@@ -45,6 +45,8 @@ class ScriptExecutorWindowState(
 
     private var _text by mutableStateOf("")
     private var _scriptOutput = mutableStateOf("")
+    private var _status = mutableStateOf("")
+    private var _iconPath = mutableStateOf("run.png")
 
     var text: String
         get() = _text
@@ -59,7 +61,20 @@ class ScriptExecutorWindowState(
         set(value) {
             check(isInit)
             _scriptOutput = value
-            outputUpdated = true
+        }
+
+    var status: MutableState<String>
+        get() = _status
+        set(value) {
+            check(isInit)
+            _status = value
+        }
+
+    var buttonIconPath: MutableState<String>
+        get() = _iconPath
+        set(value) {
+            check(isInit)
+            _iconPath = value
         }
 
     var isInit by mutableStateOf(false)
@@ -76,21 +91,48 @@ class ScriptExecutorWindowState(
     suspend fun runScript() {
         println("running script...")
         if (path == null) {
-            save()
+            withContext(Dispatchers.Default) {
+                launch {
+                    save()
+                }
+            }
+        }
+
+        if (path == null) {
+            return
         }
 
         println("script successfully ran, printing result...")
-        val p = ProcessBuilder("ping", "google.com")
+        println("path = $path")
+        val file = path?.toFile()
+        assert(file != null)
+
+        if (file != null) {
+            assert(file.exists())
+        }
+
+        val p = ProcessBuilder("kotlinc",  "-script", path.toString())
         var output = ""
+        var error = ""
         withContext(Dispatchers.IO) {
             val process = p.start()
-            val inputStream = BufferedReader(InputStreamReader(process.getInputStream()))
-            while (inputStream.readLine()?.also { output = it } != null) {
+            isRunning = true
+            status.value = "Running script..."
+            buttonIconPath.value = "stop.png"
+            val inputStream = BufferedReader(InputStreamReader(process.inputStream))
+            val errorStream = BufferedReader(InputStreamReader(process.errorStream))
+            while (inputStream.readLine()?.also { output = it } != null || errorStream.readLine()?.also{ error = it } != null) {
                 scriptOutput.value += "\n$output"
+                scriptOutput.value += "\n$error"
 //                println("Debug: " + output)
             }
             inputStream.close()
+
             process.waitFor()
+            isRunning = false
+            val exitCode = process.exitValue()
+            status.value = "Script Executed, exit code: $exitCode"
+            buttonIconPath.value = "run.png"
         }
     }
 
@@ -109,6 +151,7 @@ class ScriptExecutorWindowState(
         try {
             _text = path.readTextAsync()
             isInit = true
+            codeEditor!!.textArea.text = path.readTextAsync()
         } catch (e: Exception) {
             e.printStackTrace()
             text = "Cannot read $path"
