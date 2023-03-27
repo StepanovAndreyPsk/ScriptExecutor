@@ -17,6 +17,7 @@ import util.AlertDialogResult
 import java.nio.file.Path
 import java.io.BufferedReader
 import java.io.File
+import java.io.IOException
 import java.io.InputStreamReader
 
 class ScriptExecutorWindowState(
@@ -47,6 +48,8 @@ class ScriptExecutorWindowState(
     private var _scriptOutput = mutableStateOf("")
     private var _status = mutableStateOf("")
     private var _iconPath = mutableStateOf("run.png")
+
+    private lateinit var process: Process
 
     var text: String
         get() = _text
@@ -87,9 +90,18 @@ class ScriptExecutorWindowState(
             WindowPlacement.Fullscreen
         }
     }
+    suspend fun runOrStopScript() {
+        if (isRunning) {
+            stopScript()
+        }
+        else {
+            runScript()
+        }
+    }
 
     suspend fun runScript() {
         println("running script...")
+        scriptOutput.value = ""
         if (path == null) {
             withContext(Dispatchers.Default) {
                 launch {
@@ -115,25 +127,46 @@ class ScriptExecutorWindowState(
         var output = ""
         var error = ""
         withContext(Dispatchers.IO) {
-            val process = p.start()
+            process = p.start()
             isRunning = true
             status.value = "Running script..."
             buttonIconPath.value = "stop.png"
             val inputStream = BufferedReader(InputStreamReader(process.inputStream))
             val errorStream = BufferedReader(InputStreamReader(process.errorStream))
-            while (inputStream.readLine()?.also { output = it } != null || errorStream.readLine()?.also{ error = it } != null) {
-                scriptOutput.value += "\n$output"
-                scriptOutput.value += "\n$error"
+            try {
+                while (inputStream.readLine()?.also { output = it } != null || errorStream.readLine()
+                        ?.also { error = it } != null) {
+                    if (output.isNotEmpty()) {
+                        scriptOutput.value += "\n$output"
+                    }
+                    if (error.isNotEmpty()) {
+                        scriptOutput.value += "\n$error"
+                    }
 //                println("Debug: " + output)
+                }
+            } catch(e: IOException) {
+                isRunning = false
+                status.value = "Script stopped"
+                buttonIconPath.value = "run.png"
             }
-            inputStream.close()
+            finally {
+                inputStream.close()
+                errorStream.close()
+            }
 
-            process.waitFor()
-            isRunning = false
-            val exitCode = process.exitValue()
-            status.value = "Script Executed, exit code: $exitCode"
-            buttonIconPath.value = "run.png"
+            if (isRunning) {
+                process.waitFor()
+                isRunning = false
+                val exitCode = process.exitValue()
+                status.value = "Script Executed, exit code: $exitCode"
+                buttonIconPath.value = "run.png"
+            }
         }
+    }
+
+    fun stopScript() {
+        process.destroy()
+        buttonIconPath.value = "run.png"
     }
 
     suspend fun run() {
@@ -146,7 +179,6 @@ class ScriptExecutorWindowState(
 
     private suspend fun open(path: Path) {
         isInit = false
-        isChanged = false
         this.path = path
         try {
             _text = path.readTextAsync()
@@ -156,6 +188,7 @@ class ScriptExecutorWindowState(
             e.printStackTrace()
             text = "Cannot read $path"
         }
+        isChanged = false
     }
 
     private fun initNew() {

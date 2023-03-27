@@ -32,7 +32,7 @@ fun ScriptExecutorWindow(state: ScriptExecutorWindowState) {
     val scope = rememberCoroutineScope()
 
     fun exit() = scope.launch { state.exit() }
-    fun runScript() = scope.launch { state.runScript() }
+    fun runOrStopScript() = scope.launch { state.runOrStopScript() }
 
     Window(
         state = state.window,
@@ -54,7 +54,7 @@ fun ScriptExecutorWindow(state: ScriptExecutorWindowState) {
                 val iconPath by mutableStateOf(state.buttonIconPath)
                 Button(
                     modifier = Modifier.size(50.dp, 50.dp),
-                    onClick = { runScript() }
+                    onClick = { runOrStopScript() }
                 ) {
                     Image(painterResource(iconPath.value), "")
                 }
